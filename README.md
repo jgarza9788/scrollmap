@@ -1,0 +1,2 @@
+# scrollmap
+an omarchy plugin 
