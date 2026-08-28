@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "id": "jgarza.scrollmap",
+  "name": "Scroll Map",
+  "version": "1.0.0",
+  "author": "jgarza",
+  "license": "MIT",
+  "description": "Mini-map of this monitor's active-workspace windows for the Hyprland scrolling layout. Cells are sized in proportion to each window's on-screen width, ordered by position, and the stretch inside the viewport is underlined.",
+  "preview": "preview.png",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Scroll Map",
+    "description": "Proportional mini-map of the scrolling-layout windows on the active workspace.",
+    "category": "Compositor",
+    "allowMultiple": false,
+    "defaultSection": "center",
+    "defaults": {
+      "maxWidth": 280,
+      "minCell": 6,
+      "gap": 3,
+      "iconMode": "icons",
+      "nameLength": 3,
+      "cellStyle": "solid",
+      "dimInactive": true,
+      "showViewport": true,
+      "animate": true,
+      "showFloating": false
+    },
+    "schema": [
+      {
+        "key": "maxWidth",
+        "type": "integer",
+        "label": "Maximum strip width",
+        "description": "Longest the mini-map is allowed to get, in logical pixels. On a vertical bar this caps the height instead.",
+        "min": 120,
+        "max": 600,
+        "step": 10,
+        "defaultValue": 280
+      },
+      {
+        "key": "minCell",
+        "type": "integer",
+        "label": "Minimum window cell",
+        "description": "Smallest a single window cell can shrink to, so narrow windows stay clickable. Lower values keep the mini-map more true to scale.",
+        "min": 4,
+        "max": 40,
+        "step": 2,
+        "defaultValue": 6
+      },
+      {
+        "key": "gap",
+        "type": "integer",
+        "label": "Cell gap",
+        "description": "Space between window cells in logical pixels.",
+        "min": 0,
+        "max": 12,
+        "step": 1,
+        "defaultValue": 3
+      },
+      {
+        "key": "iconMode",
+        "type": "enum",
+        "label": "Cell label",
+        "description": "What to draw inside each window cell.",
+        "defaultValue": "icons",
+        "options": [
+          {
+            "value": "none",
+            "label": "None",
+            "icon": "",
+            "description": "No glyph — just the cell and its viewport underline."
+          },
+          {
+            "value": "icons",
+            "label": "App icons",
+            "icon": "",
+            "description": "The resolved application icon, first class letter when none resolves."
+          },
+          {
+            "value": "nerdfont",
+            "label": "Nerd Font glyphs",
+            "icon": "",
+            "description": "A Nerd Font glyph matched from the window class, generic window glyph when unmatched."
+          },
+          {
+            "value": "shortname",
+            "label": "Short name",
+            "icon": "",
+            "description": "The window class truncated to a few characters."
+          }
+        ]
+      },
+      {
+        "key": "nameLength",
+        "type": "integer",
+        "label": "Short-name length",
+        "description": "Characters shown per cell in short-name mode. Ignored by the other label modes.",
+        "min": 1,
+        "max": 4,
+        "step": 1,
+        "defaultValue": 3
+      },
+      {
+        "key": "cellStyle",
+        "type": "enum",
+        "label": "Cell style",
+        "description": "How each window cell body is drawn.",
+        "defaultValue": "solid",
+        "options": [
+          {
+            "value": "solid",
+            "label": "Solid",
+            "description": "Translucent filled cells. The default."
+          },
+          {
+            "value": "outline",
+            "label": "Outline",
+            "description": "Transparent interior with a thin border on every cell."
+          },
+          {
+            "value": "filled",
+            "label": "Filled",
+            "description": "Opaque, high-contrast blocks."
+          },
+          {
+            "value": "underline",
+            "label": "Bars",
+            "description": "No cell body - only the viewport and focus tick under each window."
+          }
+        ]
+      },
+      {
+        "key": "dimInactive",
+        "type": "boolean",
+        "label": "Dim unfocused windows",
+        "description": "Fade every cell except the focused window.",
+        "defaultValue": true
+      },
+      {
+        "key": "showViewport",
+        "type": "boolean",
+        "label": "Mark on-screen windows",
+        "description": "Underline the windows currently inside the monitor's viewport and fade the ones scrolled off the edges.",
+        "defaultValue": true
+      },
+      {
+        "key": "animate",
+        "type": "boolean",
+        "label": "Animate changes",
+        "description": "Fade and slide cells as windows open, close, and move. Turn off for an instant, static strip.",
+        "defaultValue": true
+      },
+      {
+        "key": "showFloating",
+        "type": "boolean",
+        "label": "Include floating windows",
+        "description": "Add floating windows to the strip, slotted in by position and drawn with a dashed outline. Off by default since the scrolling layout only tiles.",
+        "defaultValue": false
+      }
+    ]
+  }
+}

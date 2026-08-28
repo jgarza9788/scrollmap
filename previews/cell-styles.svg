@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="236" viewBox="0 0 480 236" font-family="monospace">
+<rect width="480" height="236" fill="#1e1e2e"/>
+<text x="16" y="32" font-size="11" fill="rgba(205,214,244,0.750)" font-weight="700" letter-spacing="1">SOLID</text>
+<rect x="60.00" y="40.00" width="60.13" height="20" rx="3" fill="rgba(205,214,244,0.110)" stroke="none" stroke-width="0" opacity="1.00"/>
+<rect x="60.00" y="58.50" width="60.13" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.28"/>
+<text x="90.06" y="54.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Fi</text>
+<rect x="123.13" y="40.00" width="100.72" height="20" rx="3" fill="rgba(205,214,244,0.320)" stroke="#89b4fa" stroke-width="1" opacity="1.00"/>
+<rect x="123.13" y="58.00" width="100.72" height="2" rx="1.00" fill="#89b4fa" opacity="1.00"/>
+<text x="173.49" y="54.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="1.00">Co</text>
+<rect x="226.85" y="40.00" width="39.83" height="20" rx="3" fill="rgba(205,214,244,0.110)" stroke="none" stroke-width="0" opacity="1.00"/>
+<rect x="226.85" y="58.50" width="39.83" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.70"/>
+<text x="246.77" y="54.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Ke</text>
+<rect x="269.68" y="40.00" width="80.43" height="20" rx="3" fill="rgba(205,214,244,0.110)" stroke="none" stroke-width="0" opacity="1.00"/>
+<rect x="269.68" y="58.50" width="80.43" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.70"/>
+<text x="309.89" y="54.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Di</text>
+<rect x="353.11" y="40.00" width="66.89" height="20" rx="3" fill="rgba(205,214,244,0.110)" stroke="none" stroke-width="0" opacity="0.40"/>
+<text x="386.55" y="54.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.40">Sp</text>
+<text x="16" y="86" font-size="11" fill="rgba(205,214,244,0.750)" font-weight="700" letter-spacing="1">OUTLINE</text>
+<rect x="60.00" y="94.00" width="60.13" height="20" rx="3" fill="none" stroke="rgba(205,214,244,0.350)" stroke-width="1" opacity="1.00"/>
+<rect x="60.00" y="112.50" width="60.13" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.28"/>
+<text x="90.06" y="108.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Fi</text>
+<rect x="123.13" y="94.00" width="100.72" height="20" rx="3" fill="none" stroke="#89b4fa" stroke-width="1" opacity="1.00"/>
+<rect x="123.13" y="112.00" width="100.72" height="2" rx="1.00" fill="#89b4fa" opacity="1.00"/>
+<text x="173.49" y="108.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="1.00">Co</text>
+<rect x="226.85" y="94.00" width="39.83" height="20" rx="3" fill="none" stroke="rgba(205,214,244,0.350)" stroke-width="1" opacity="1.00"/>
+<rect x="226.85" y="112.50" width="39.83" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.70"/>
+<text x="246.77" y="108.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Ke</text>
+<rect x="269.68" y="94.00" width="80.43" height="20" rx="3" fill="none" stroke="rgba(205,214,244,0.350)" stroke-width="1" opacity="1.00"/>
+<rect x="269.68" y="112.50" width="80.43" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.70"/>
+<text x="309.89" y="108.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Di</text>
+<rect x="353.11" y="94.00" width="66.89" height="20" rx="3" fill="none" stroke="rgba(205,214,244,0.350)" stroke-width="1" opacity="0.40"/>
+<text x="386.55" y="108.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.40">Sp</text>
+<text x="16" y="140" font-size="11" fill="rgba(205,214,244,0.750)" font-weight="700" letter-spacing="1">FILLED</text>
+<rect x="60.00" y="148.00" width="60.13" height="20" rx="3" fill="rgba(205,214,244,0.500)" stroke="none" stroke-width="0" opacity="1.00"/>
+<rect x="60.00" y="166.50" width="60.13" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.28"/>
+<text x="90.06" y="162.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Fi</text>
+<rect x="123.13" y="148.00" width="100.72" height="20" rx="3" fill="rgba(205,214,244,0.920)" stroke="#89b4fa" stroke-width="1" opacity="1.00"/>
+<rect x="123.13" y="166.00" width="100.72" height="2" rx="1.00" fill="#89b4fa" opacity="1.00"/>
+<text x="173.49" y="162.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="1.00">Co</text>
+<rect x="226.85" y="148.00" width="39.83" height="20" rx="3" fill="rgba(205,214,244,0.500)" stroke="none" stroke-width="0" opacity="1.00"/>
+<rect x="226.85" y="166.50" width="39.83" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.70"/>
+<text x="246.77" y="162.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Ke</text>
+<rect x="269.68" y="148.00" width="80.43" height="20" rx="3" fill="rgba(205,214,244,0.500)" stroke="none" stroke-width="0" opacity="1.00"/>
+<rect x="269.68" y="166.50" width="80.43" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.70"/>
+<text x="309.89" y="162.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Di</text>
+<rect x="353.11" y="148.00" width="66.89" height="20" rx="3" fill="rgba(205,214,244,0.500)" stroke="none" stroke-width="0" opacity="0.40"/>
+<text x="386.55" y="162.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.40">Sp</text>
+<text x="16" y="194" font-size="11" fill="rgba(205,214,244,0.750)" font-weight="700" letter-spacing="1">UNDERLINE</text>
+<rect x="60.00" y="220.50" width="60.13" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.28"/>
+<text x="90.06" y="216.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Fi</text>
+<rect x="123.13" y="202.00" width="100.72" height="20" rx="3" fill="none" stroke="#89b4fa" stroke-width="1" opacity="1.00"/>
+<rect x="123.13" y="220.00" width="100.72" height="2" rx="1.00" fill="#89b4fa" opacity="1.00"/>
+<text x="173.49" y="216.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="1.00">Co</text>
+<rect x="226.85" y="220.50" width="39.83" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.70"/>
+<text x="246.77" y="216.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Ke</text>
+<rect x="269.68" y="220.50" width="80.43" height="1.5" rx="0.75" fill="#89b4fa" opacity="0.70"/>
+<text x="309.89" y="216.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.90">Di</text>
+<text x="386.55" y="216.50" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="#cdd6f4" opacity="0.40">Sp</text>
+</svg>
