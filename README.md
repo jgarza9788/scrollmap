@@ -11,7 +11,9 @@ does nothing else.
 
 *If Scroll Map is useful to you, consider [buying me a coffee](https://buymeacoffee.com/jgarza97885).*
 
-![preview](preview.png)
+![preview](preview.png)  
+
+[▶️ YouTube Video Demo](https://www.youtube.com/watch?v=rfmkSCV7xyw)
 
 ### Cell labels
 
