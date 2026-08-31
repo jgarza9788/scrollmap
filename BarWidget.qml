@@ -139,16 +139,55 @@ BarWidget {
   readonly property real stripExtent: Model.preferredExtent(
     clients.length, 44, Math.min(96, maxExtent), maxExtent)
 
-  // Resolve an application icon from its window class. The shell's app library
-  // does proper desktop-entry matching; fall back to a raw icon-theme lookup.
+  // Resolve the desktop entry behind a native app, installed browser PWA, or
+  // Omarchy URL-based web app. The latter has no stable StartupWMClass, so join
+  // its hostname-shaped window class to the URL in the desktop entry's Exec=.
+  function desktopIconForClass(cls) {
+    var key = String(cls || "").trim().toLowerCase().replace(/\.desktop$/, "")
+    var domain = Model.webAppDomain(key)
+    var entries = DesktopEntries.applications ? DesktopEntries.applications.values : []
+    var webIcon = ""
+
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i]
+      if (!entry)
+        continue
+      var icon = String(entry.icon || "").trim()
+      if (!icon)
+        continue
+      var id = String(entry.id || "").trim().toLowerCase().replace(/\.desktop$/, "")
+      var startupClass = String(entry.startupClass || "").trim().toLowerCase()
+      if (id === key || startupClass === key)
+        return icon
+      if (!webIcon && domain
+          && Model.sameWebAppDomain(domain, Model.webAppExecDomain(entry.execString)))
+        webIcon = icon
+    }
+
+    return webIcon
+  }
+
+  // Use the icon configured by the matched desktop entry. Raw icon-theme
+  // lookup remains as a fallback for apps with no matching desktop entry.
   function resolveIcon(cls) {
     var value = String(cls || "")
     if (!value)
       return ""
-    if (bar && bar.shell && bar.shell.appLibrary)
-      return bar.shell.appLibrary.iconSource(value)
+    var configured = desktopIconForClass(value)
+    if (configured) {
+      if (bar && bar.shell && bar.shell.appLibrary)
+        return bar.shell.appLibrary.iconSource(configured)
+      var configuredPath = Quickshell.iconPath(configured, true)
+      if (configuredPath)
+        return configuredPath
+    }
     var direct = Quickshell.iconPath(value, true)
-    return direct ? direct : Quickshell.iconPath(value.toLowerCase(), true)
+    if (!direct)
+      direct = Quickshell.iconPath(value.toLowerCase(), true)
+    if (direct)
+      return direct
+    return bar && bar.shell && bar.shell.appLibrary
+      ? bar.shell.appLibrary.iconSource(value) : ""
   }
 
   // Stable delegate model: replaced only when order, size, focus or floating

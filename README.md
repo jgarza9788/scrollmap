@@ -48,7 +48,9 @@ Regenerate with `python3 previews/generate_previews.py`.
 - **Focus** — the focused window's cell gets an accent border and a solid
   underline.
 - **Cell label** — `iconMode` picks what fills each cell: `none` (bare cells),
-  `icons` (the app icon, first class letter when none resolves), `nerdfont` (a
+  `icons` (the installed desktop entry's configured icon, matched directly for
+  native apps/PWAs and by `Exec=` hostname for Omarchy web apps; first class
+  letter when none resolves), `nerdfont` (a
   Nerd Font glyph matched from the window class, a generic window glyph when
   unmatched), or `shortname` (the class truncated to `nameLength` characters,
   1–4). The `nerdfont` and `shortname` labels are drawn larger and bold, and
