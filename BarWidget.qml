@@ -99,6 +99,8 @@ BarWidget {
     return Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : -1
   }
 
+  onBarWorkspaceIdChanged: probeLayout()
+
   // The monitor's visible region in compositor coordinates, along the bar's
   // main axis. Clients whose geometry falls outside this are scrolled off.
   readonly property var viewportRange: {
@@ -229,13 +231,24 @@ BarWidget {
 
   Process {
     id: layoutProbe
-    command: ["hyprctl", "getoption", "general:layout", "-j"]
+    // Omarchy toggles layouts per workspace, so general:layout can remain
+    // "dwindle" while the workspace displayed on this bar is "scrolling".
+    command: ["hyprctl", "workspaces", "-j"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
         try {
-          var parsed = JSON.parse(String(text || "{}"))
-          root.layoutName = String(parsed.str || "").trim()
+          var workspaces = JSON.parse(String(text || "[]"))
+          var current = ""
+          if (Array.isArray(workspaces)) {
+            for (var i = 0; i < workspaces.length; i++) {
+              if (Number(workspaces[i].id) === root.barWorkspaceId) {
+                current = String(workspaces[i].tiledLayout || "")
+                break
+              }
+            }
+          }
+          root.layoutName = current.trim()
         } catch (e) {
         }
       }
@@ -253,9 +266,13 @@ BarWidget {
         root.burst()
         return
       }
-      if (n.indexOf("window") !== -1 || n.indexOf("workspace") !== -1
-          || n.indexOf("monitor") !== -1 || n === "changefloatingmode"
-          || n === "fullscreen" || n === "activelayout")
+      if (n.indexOf("workspace") !== -1 || n === "activelayout") {
+        root.probeLayout()
+        root.burst()
+        return
+      }
+      if (n.indexOf("window") !== -1 || n.indexOf("monitor") !== -1
+          || n === "changefloatingmode" || n === "fullscreen")
         root.burst()
     }
   }
