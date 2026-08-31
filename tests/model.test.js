@@ -14,6 +14,22 @@ ok("normalizeAddress keeps 0x", M.normalizeAddress("0x55D1AA") === "0x55d1aa");
 ok("normalizeAddress rejects junk", M.normalizeAddress("nope!") === "");
 ok("normalizeAddress rejects empty", M.normalizeAddress("") === "");
 
+// web-app desktop-entry matching
+ok("webAppDomain extracts Brave app host",
+  M.webAppDomain("brave-gemini.google.com__app-Default") === "gemini.google.com");
+ok("webAppDomain keeps www host",
+  M.webAppDomain("brave-www.facebook.com__-Default") === "www.facebook.com");
+ok("webAppDomain ignores a normal browser window", M.webAppDomain("brave-browser") === "");
+ok("webAppDomain supports Chromium app classes",
+  M.webAppDomain("chromium-web.whatsapp.com__-Default") === "web.whatsapp.com");
+ok("webAppExecDomain extracts quoted URL host",
+  M.webAppExecDomain('omarchy-launch-webapp "https://gemini.google.com/app"') === "gemini.google.com");
+ok("webAppExecDomain ignores non-web launchers", M.webAppExecDomain("slack --start-minimized") === "");
+ok("sameWebAppDomain treats www as equivalent",
+  M.sameWebAppDomain("www.facebook.com", "facebook.com"));
+ok("sameWebAppDomain keeps distinct Google apps separate",
+  !M.sameWebAppDomain("maps.google.com", "contacts.google.com"));
+
 // eligibleClients
 const tops = [
   { address: "aa1", lastIpcObject: { class: "kitty", title: "shell", at: [0, 0], size: [800, 1000], workspace: { id: 1 } } },

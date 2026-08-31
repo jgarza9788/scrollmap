@@ -11,6 +11,51 @@ function normalizeAddress(value) {
   return /^[0-9a-f]+$/.test(raw) && raw.length > 0 ? "0x" + raw : ""
 }
 
+// Browsers launched with --app=<url> encode the URL host in the window class.
+// Omarchy's desktop entries keep that same URL in Exec=, so the widget can
+// join a web-app window back to its configured desktop icon without fetching
+// or guessing an icon itself.
+var WEBAPP_CLASS_PREFIXES = [
+  "brave-",
+  "chromium-",
+  "google-chrome-",
+  "microsoft-edge-",
+  "vivaldi-",
+  "opera-",
+  "helium-"
+]
+
+function webAppDomain(cls) {
+  var key = String(cls || "").trim().toLowerCase()
+  for (var i = 0; i < WEBAPP_CLASS_PREFIXES.length; i++) {
+    var prefix = WEBAPP_CLASS_PREFIXES[i]
+    if (key.indexOf(prefix) !== 0) continue
+    var encoded = key.slice(prefix.length)
+    var marker = encoded.indexOf("__")
+    if (marker <= 0) return ""
+    var host = encoded.slice(0, marker).replace(/\.$/, "")
+    return host.indexOf(".") > 0 && /^[a-z0-9.-]+$/.test(host) ? host : ""
+  }
+  return ""
+}
+
+function webAppExecDomain(execString) {
+  var match = String(execString || "").match(/https?:\/\/([^\/\s"']+)/i)
+  if (!match) return ""
+  return String(match[1] || "").toLowerCase().replace(/:\d+$/, "").replace(/\.$/, "")
+}
+
+function normalizedDomain(value) {
+  var host = String(value || "").trim().toLowerCase().replace(/\.$/, "")
+  return host.indexOf("www.") === 0 ? host.slice(4) : host
+}
+
+function sameWebAppDomain(left, right) {
+  var a = normalizedDomain(left)
+  var b = normalizedDomain(right)
+  return a.length > 0 && a === b
+}
+
 function ipcOf(toplevel) {
   var ipc = toplevel && toplevel.lastIpcObject
   return ipc && typeof ipc === "object" ? ipc : {}
@@ -237,6 +282,9 @@ if (typeof module !== "undefined") {
     orderByPosition: orderByPosition,
     computeStrip: computeStrip,
     preferredExtent: preferredExtent,
+    webAppDomain: webAppDomain,
+    webAppExecDomain: webAppExecDomain,
+    sameWebAppDomain: sameWebAppDomain,
     nerdGlyph: nerdGlyph,
     shortName: shortName,
     NERD_FALLBACK: NERD_FALLBACK
