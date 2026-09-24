@@ -1,51 +1,46 @@
 #!/usr/bin/env python3
-"""Render schematic SVG previews of the Scroll Map settings.
+"""Render schematic SVG previews of the Scroll Map bracket strip.
 
-These are mock-ups, not screenshots: cell widths, gaps, the viewport
-underline, focus treatment and the scrolled-off fade follow the same math as
-`Model.computeStrip` and the `BarWidget.qml` delegate, so they read the way
-the real widget does without needing a running shell. Re-run after changing
-the delegate:
+These are mock-ups, not screenshots: bracket padding follows
+`Model.sizeFraction` + `Model.padCurve` (size^curve x padRange per side),
+colours follow
+`Model.stateFor` (accent when focused, foreground on screen, muted when
+scrolled off) and floating windows use ( ) - the same rules the
+`BarWidget.qml` delegate draws with. Re-run after changing the delegate:
 
     python3 previews/generate_previews.py
 
 Outputs:
-  previews/cell-styles.svg   - the four `cellStyle` values
-  previews/label-modes.svg   - the four `iconMode` values
+  previews/label-modes.svg    - the four `iconMode` values on one sample strip
+  previews/sizes-states.svg   - sizes and colour states, as a legend
 """
 
 # Catppuccin Mocha - the common Omarchy default palette.
 BG = "#1e1e2e"
 FG = "#cdd6f4"
 ACCENT = "#89b4fa"
+MUTED = "#6c7086"
 
-# Sample layout: five windows of differing on-screen widths.
-EXTENTS = [800, 1400, 500, 1100, 900]
-SHORT = ["Fi", "Co", "Ke", "Di", "Sp"]
-# Per-cell fraction of the window currently inside the monitor viewport.
-VIS = [0.15, 1.0, 1.0, 1.0, 0.0]
-FOCUS = 1
-
-AVAIL = 360.0
-GAP = 3.0
-MIN_CELL = 6.0
-CANVAS_W = 480
-LANE_H = 20
-STRIP_H = 54
+CANVAS_W = 520
+ROW_H = 54
 PAD_TOP = 20
+FONT = 20          # bracket font size
+CHAR_W = FONT * 0.6
+SPACE = CHAR_W * 0.6   # "brackets only" label width, as in the widget
+PAD_RANGE = 28         # padding per side for a full-monitor window
+PAD_CURVE = 2.0        # padding = size ** PAD_CURVE, as in the widget
+LABEL_W = 18
+GAP = 4
+LANE_H = 26
 
-
-def strip_layout():
-    n = len(EXTENTS)
-    usable = AVAIL - GAP * (n - 1)
-    total = float(sum(EXTENTS))
-    free = usable - MIN_CELL * n
-    sizes = [MIN_CELL + free * (e / total) for e in EXTENTS]
-    offsets, acc = [], 0.0
-    for s in sizes:
-        offsets.append(acc)
-        acc += s + GAP
-    return sizes, offsets
+# Sample strip: (size 0..1, floating, state, short name, glyph index)
+SAMPLE = [
+    (0.2, False, "offscreen", "Chr", 0),
+    (0.5, False, "onscreen", "Gho", 1),
+    (0.45, False, "focused", "Cod", 2),
+    (0.25, True, "onscreen", "Dis", 3),
+    (1.0, False, "offscreen", "Spo", 4),
+]
 
 
 def rgba(hex_color, alpha):
@@ -54,34 +49,14 @@ def rgba(hex_color, alpha):
     return f"rgba({r},{g},{b},{alpha:.3f})"
 
 
-def body(style, x, y0, w, focused, on_screen, opacity):
-    fill, stroke, stroke_w = "none", "none", 0
-    if style == "solid":
-        fill = rgba(FG, 0.32 if focused else 0.11)
-        if focused:
-            stroke, stroke_w = ACCENT, 1
-    elif style == "outline":
-        stroke = ACCENT if focused else rgba(FG, 0.35)
-        stroke_w = 1
-    elif style == "filled":
-        fill = rgba(FG, 0.92 if focused else 0.5)
-        if focused:
-            stroke, stroke_w = ACCENT, 1
-    elif style == "underline" and focused:
-        stroke, stroke_w = ACCENT, 1
-    if fill == "none" and stroke == "none":
-        return []
-    return [
-        f'<rect x="{x:.2f}" y="{y0:.2f}" width="{w:.2f}" height="{LANE_H}" rx="3" '
-        f'fill="{fill}" stroke="{stroke}" stroke-width="{stroke_w}" '
-        f'opacity="{opacity:.2f}"/>'
-    ]
+def tone(state):
+    return {"focused": ACCENT, "onscreen": FG}.get(state, MUTED)
 
 
-def nerd_glyph(i, cx, cy, color, op):
+def nerd_glyph(i, cx, cy, color):
     """Five distinct primitives so the row reads as a different glyph per app."""
     g = f'<g fill="none" stroke="{color}" stroke-width="1.8" ' \
-        f'stroke-linecap="round" stroke-linejoin="round" opacity="{op:.2f}">'
+        f'stroke-linecap="round" stroke-linejoin="round">'
     if i == 0:      # ringed dot
         s = f'<circle cx="{cx}" cy="{cy}" r="6.5"/>' \
             f'<circle cx="{cx}" cy="{cy}" r="1.6" fill="{color}" stroke="none"/>'
@@ -100,70 +75,83 @@ def nerd_glyph(i, cx, cy, color, op):
     return [g + s + "</g>"]
 
 
-def label(mode, i, x, y0, w, focused, on_screen):
-    if mode == "none" or w < 16:
+def label_w(mode):
+    if mode == "none":
+        return SPACE
+    if mode == "shortname":
+        return 3 * 8.5
+    return LABEL_W
+
+
+def label(mode, i, short, cx, cy, state):
+    color = tone(state)
+    if mode == "none":
         return []
-    op = 1.0 if focused else (0.9 if on_screen else 0.4)
-    cx, cy = x + w / 2, y0 + LANE_H / 2
     if mode == "icons":
         # Generic app-icon placeholder (real icons resolve from the theme).
+        op = {"focused": 1.0, "onscreen": 0.85}.get(state, 0.4)
         return [
             f'<g opacity="{op:.2f}">'
-            f'<rect x="{cx-6.5:.2f}" y="{cy-6.5:.2f}" width="13" height="13" '
-            f'rx="3.5" fill="{rgba(FG, 0.85)}"/>'
-            f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="2.6" fill="{BG}"/></g>'
+            f'<rect x="{cx-8:.2f}" y="{cy-8:.2f}" width="16" height="16" '
+            f'rx="4" fill="{rgba(FG, 0.9)}"/>'
+            f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="3" fill="{BG}"/></g>'
         ]
     if mode == "nerdfont":
-        return nerd_glyph(i, cx, cy, FG, op)
-    # shortname - bigger + bold, matching the delegate.
+        return nerd_glyph(i, cx, cy, color)
     return [
         f'<text x="{cx:.2f}" y="{cy + 4.5:.2f}" text-anchor="middle" '
-        f'font-family="monospace" font-size="14" font-weight="700" '
-        f'fill="{FG}" opacity="{op:.2f}">{SHORT[i]}</text>'
+        f'font-size="13" font-weight="700" fill="{color}">{short}</text>'
     ]
 
 
-def strip(style, mode, x0, y0):
-    sizes, offsets = strip_layout()
+def item_width(size, mode):
+    return 2 * CHAR_W + 2 * (size ** PAD_CURVE) * PAD_RANGE + label_w(mode)
+
+
+def window(x, y0, size, floating, state, short, i, mode):
+    """One bracketed window at (x, y0); returns (svg parts, width)."""
+    w = item_width(size, mode)
+    color = tone(state)
+    bold = ' font-weight="700"' if state == "focused" else ""
+    left, right = ("(", ")") if floating else ("[", "]")
+    cy = y0 + LANE_H / 2
     out = []
-    for i, (w, off) in enumerate(zip(sizes, offsets)):
-        focused = i == FOCUS
-        frac = VIS[i]
-        on_screen = frac > 0.02
-        x = x0 + off
-        opacity = 1.0 if on_screen else 0.4
+    for glyph, gx in ((left, x + CHAR_W / 2), (right, x + w - CHAR_W / 2)):
+        out.append(
+            f'<text x="{gx:.2f}" y="{cy + FONT * 0.34:.2f}" text-anchor="middle" '
+            f'font-size="{FONT}"{bold} fill="{color}">{glyph}</text>'
+        )
+    out += label(mode, i, short, x + w / 2, cy, state)
+    return out, w
 
-        out += body(style, x, y0, w, focused, on_screen, opacity)
 
-        if focused or on_screen:
-            thick = 2 if focused else 1.5
-            u_op = 1.0 if focused else (0.2 + 0.5 * frac)
-            out.append(
-                f'<rect x="{x:.2f}" y="{y0 + LANE_H - thick:.2f}" width="{w:.2f}" '
-                f'height="{thick}" rx="{thick / 2:.2f}" fill="{ACCENT}" '
-                f'opacity="{u_op:.2f}"/>'
-            )
-
-        out += label(mode, i, x, y0, w, focused, on_screen)
+def strip(items, mode, y0):
+    widths = [item_width(b, mode) for b, *_ in items]
+    total = sum(widths) + GAP * (len(items) - 1)
+    x = (CANVAS_W - total) / 2
+    out = []
+    for i, (size, floating, state, short, glyph) in enumerate(items):
+        parts, w = window(x, y0, size, floating, state, short, glyph, mode)
+        out += parts
+        x += w + GAP
     return out
 
 
-def build(rows, vary):
-    """rows: list of (heading, cellStyle, iconMode)."""
-    h = PAD_TOP + STRIP_H * len(rows)
-    x0 = (CANVAS_W - AVAIL) / 2
+def svg(rows):
+    """rows: list of (heading, items, iconMode)."""
+    h = PAD_TOP + ROW_H * len(rows)
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{CANVAS_W}" height="{h}" '
         f'viewBox="0 0 {CANVAS_W} {h}" font-family="monospace">',
         f'<rect width="{CANVAS_W}" height="{h}" fill="{BG}"/>',
     ]
-    for r_i, (heading, style, mode) in enumerate(rows):
-        top = PAD_TOP + STRIP_H * r_i
+    for r_i, (heading, items, mode) in enumerate(rows):
+        top = PAD_TOP + ROW_H * r_i
         parts.append(
-            f'<text x="16" y="{top + 12}" font-size="11" fill="{rgba(FG, 0.75)}" '
+            f'<text x="16" y="{top + 8}" font-size="11" fill="{rgba(FG, 0.75)}" '
             f'font-weight="700" letter-spacing="1">{heading}</text>'
         )
-        parts += strip(style, mode, x0, top + 20)
+        parts += strip(items, mode, top + 16)
     parts.append("</svg>")
     return "\n".join(parts) + "\n"
 
@@ -173,23 +161,27 @@ if __name__ == "__main__":
 
     here = os.path.dirname(__file__)
 
-    cell_styles = build([
-        ("SOLID", "solid", "shortname"),
-        ("OUTLINE", "outline", "shortname"),
-        ("FILLED", "filled", "shortname"),
-        ("UNDERLINE", "underline", "shortname"),
-    ], vary="cellStyle")
+    label_modes = svg([
+        ("ICONS", SAMPLE, "icons"),
+        ("NERD FONT", SAMPLE, "nerdfont"),
+        ("SHORT NAME", SAMPLE, "shortname"),
+        ("BRACKETS ONLY", SAMPLE, "none"),
+    ])
 
-    label_modes = build([
-        ("NONE", "solid", "none"),
-        ("ICONS", "solid", "icons"),
-        ("NERD FONT", "solid", "nerdfont"),
-        ("SHORT NAME", "solid", "shortname"),
-    ], vary="iconMode")
+    sizes_states = svg([
+        ("TILED  20% / 40% / 60% / 80% / 100% of monitor width", [
+            (f, False, "onscreen", "Gho", 1) for f in (0.2, 0.4, 0.6, 0.8, 1.0)], "nerdfont"),
+        ("FLOATING  small .. screen-filling", [
+            (f, True, "onscreen", "Dis", 3) for f in (0.2, 0.5, 0.8)], "nerdfont"),
+        ("FOCUSED / ON SCREEN / SCROLLED OFF", [
+            (0.5, False, "focused", "Cod", 2),
+            (0.5, False, "onscreen", "Gho", 1),
+            (0.5, False, "offscreen", "Spo", 4)], "nerdfont"),
+    ])
 
-    for name, svg in (("cell-styles.svg", cell_styles),
-                      ("label-modes.svg", label_modes)):
+    for name, content in (("label-modes.svg", label_modes),
+                          ("sizes-states.svg", sizes_states)):
         path = os.path.join(here, name)
         with open(path, "w") as fh:
-            fh.write(svg)
+            fh.write(content)
         print("wrote", path)

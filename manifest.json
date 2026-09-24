@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "jgarza.scrollmap",
   "name": "Scroll Map",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "jgarza",
   "license": "MIT",
-  "description": "Mini-map of this monitor's active-workspace windows for the Hyprland scrolling layout. Cells are sized in proportion to each window's on-screen width, ordered by position, and the stretch inside the viewport is underlined.",
+  "description": "Mini-map of this monitor's active-workspace windows for the Hyprland scrolling layout. Each window is a bracketed glyph at full bar height - padding grows continuously with its size ([x] .. [  x  ], floating windows in parentheses) and colour shows where it is: accent when focused, foreground on screen, muted when scrolled off. Pick from focus animations (bracket snap, slide cursor, breathe, pop, hypr-pop, glitch, neon) plus unfold/collapse and float-lift.",
   "preview": "preview.png",
   "kinds": [
     "bar-widget"
@@ -15,83 +15,53 @@
   },
   "barWidget": {
     "displayName": "Scroll Map",
-    "description": "Proportional mini-map of the scrolling-layout windows on the active workspace.",
+    "description": "Bracketed-glyph mini-map of the scrolling-layout windows on the active workspace.",
     "category": "Compositor",
     "allowMultiple": false,
     "defaultSection": "center",
     "defaults": {
-      "maxWidth": 280,
-      "minCell": 6,
-      "gap": 3,
+      "maxWidth": 360,
+      "padRange": 36,
+      "padCurve": 20,
+      "gap": 4,
       "iconMode": "icons",
       "nameLength": 3,
-      "cellStyle": "solid",
-      "dimInactive": true,
-      "showViewport": true,
-      "animate": true,
+      "focusAnimation": "bracketSnap",
+      "animUnfold": true,
+      "animFloatLift": true,
       "showFloating": false
     },
     "schema": [
       {
-        "key": "maxWidth",
-        "type": "integer",
-        "label": "Maximum strip width",
-        "description": "Longest the mini-map is allowed to get, in logical pixels. On a vertical bar this caps the height instead.",
-        "min": 120,
-        "max": 600,
-        "step": 10,
-        "defaultValue": 280
-      },
-      {
-        "key": "minCell",
-        "type": "integer",
-        "label": "Minimum window cell",
-        "description": "Smallest a single window cell can shrink to, so narrow windows stay clickable. Lower values keep the mini-map more true to scale.",
-        "min": 4,
-        "max": 40,
-        "step": 2,
-        "defaultValue": 6
-      },
-      {
-        "key": "gap",
-        "type": "integer",
-        "label": "Cell gap",
-        "description": "Space between window cells in logical pixels.",
-        "min": 0,
-        "max": 12,
-        "step": 1,
-        "defaultValue": 3
-      },
-      {
         "key": "iconMode",
         "type": "enum",
-        "label": "Cell label",
-        "description": "What to draw inside each window cell.",
+        "label": "Label",
+        "description": "What sits inside each window's brackets.",
         "defaultValue": "icons",
         "options": [
           {
-            "value": "none",
-            "label": "None",
-            "icon": "",
-            "description": "No glyph — just the cell and its viewport underline."
-          },
-          {
             "value": "icons",
             "label": "App icons",
-            "icon": "",
-            "description": "The resolved application icon, first class letter when none resolves."
+            "icon": "",
+            "description": "The application icon at full bar height, first class letter when none resolves."
           },
           {
             "value": "nerdfont",
             "label": "Nerd Font glyphs",
-            "icon": "",
-            "description": "A Nerd Font glyph matched from the window class, generic window glyph when unmatched."
+            "icon": "",
+            "description": "A Nerd Font glyph matched from the window class, a generic window glyph when unmatched."
           },
           {
             "value": "shortname",
             "label": "Short name",
-            "icon": "",
-            "description": "The window class truncated to a few characters."
+            "icon": "",
+            "description": "The window class cut to a few characters."
+          },
+          {
+            "value": "none",
+            "label": "Brackets only",
+            "icon": "",
+            "description": "Empty brackets - size and colour carry all the information."
           }
         ]
       },
@@ -99,68 +69,121 @@
         "key": "nameLength",
         "type": "integer",
         "label": "Short-name length",
-        "description": "Characters shown per cell in short-name mode. Ignored by the other label modes.",
+        "description": "Characters shown per window in short-name mode. Ignored by the other label modes.",
         "min": 1,
         "max": 4,
         "step": 1,
         "defaultValue": 3
       },
       {
-        "key": "cellStyle",
+        "key": "focusAnimation",
         "type": "enum",
-        "label": "Cell style",
-        "description": "How each window cell body is drawn.",
-        "defaultValue": "solid",
+        "label": "Focus animation",
+        "description": "Played on a window when it gains focus.",
+        "defaultValue": "bracketSnap",
         "options": [
           {
-            "value": "solid",
-            "label": "Solid",
-            "description": "Translucent filled cells. The default."
+            "value": "none",
+            "label": "None",
+            "description": "Focus just changes colour."
           },
           {
-            "value": "outline",
-            "label": "Outline",
-            "description": "Transparent interior with a thin border on every cell."
+            "value": "bracketSnap",
+            "label": "Bracket snap",
+            "description": "The brackets fly in from wide and clamp onto the glyph with a little overshoot."
           },
           {
-            "value": "filled",
-            "label": "Filled",
-            "description": "Opaque, high-contrast blocks."
+            "value": "slideCursor",
+            "label": "Slide cursor",
+            "description": "An accent underline glides from the old focused window to the new one."
           },
           {
-            "value": "underline",
-            "label": "Bars",
-            "description": "No cell body - only the viewport and focus tick under each window."
+            "value": "breathe",
+            "label": "Breathe",
+            "description": "The brackets pulse outward a few times, calm and heartbeat-like, then settle."
+          },
+          {
+            "value": "pop",
+            "label": "Pop",
+            "description": "The glyph scales up briefly and springs back."
+          },
+          {
+            "value": "hyprPop",
+            "label": "Hypr-pop",
+            "description": "A big multi-stage bounce with a rotation wobble and a shockwave ring - deliberately over the top."
+          },
+          {
+            "value": "glitch",
+            "label": "Glitch",
+            "description": "Rapid position jitter, an accent flash and a cyan/magenta chromatic fringe on the brackets."
+          },
+          {
+            "value": "neon",
+            "label": "Neon",
+            "description": "Brackets and glyph flicker through brightness variations of the theme accent, like a tube lighting up."
           }
         ]
       },
       {
-        "key": "dimInactive",
+        "key": "animUnfold",
         "type": "boolean",
-        "label": "Dim unfocused windows",
-        "description": "Fade every cell except the focused window.",
+        "label": "Unfold / collapse",
+        "description": "When an app opens, its window unfolds out of ][ into its brackets; when it closes, the window folds back and fades out. Switching workspaces doesn't trigger it.",
         "defaultValue": true
       },
       {
-        "key": "showViewport",
+        "key": "animFloatLift",
         "type": "boolean",
-        "label": "Mark on-screen windows",
-        "description": "Underline the windows currently inside the monitor's viewport and fade the ones scrolled off the edges.",
-        "defaultValue": true
-      },
-      {
-        "key": "animate",
-        "type": "boolean",
-        "label": "Animate changes",
-        "description": "Fade and slide cells as windows open, close, and move. Turn off for an instant, static strip.",
+        "label": "Float lift",
+        "description": "Toggling floating hops the window while [ ] morphs into ( ).",
         "defaultValue": true
       },
       {
         "key": "showFloating",
         "type": "boolean",
         "label": "Include floating windows",
-        "description": "Add floating windows to the strip, slotted in by position and drawn with a dashed outline. Off by default since the scrolling layout only tiles.",
+        "description": "Slot floating windows in by position, drawn with ( ) instead of [ ]. Off by default since the scrolling layout only tiles.",
         "defaultValue": false
+      },
+      {
+        "key": "maxWidth",
+        "type": "integer",
+        "label": "Maximum strip width",
+        "description": "Longest the mini-map may get, in logical pixels (height on a vertical bar). Padding shrinks first; past that the strip clips and follows focus.",
+        "min": 120,
+        "max": 1200,
+        "step": 10,
+        "defaultValue": 360
+      },
+      {
+        "key": "padRange",
+        "type": "integer",
+        "label": "Padding range",
+        "description": "Padding per side, in logical px, for a window as big as the monitor. Smaller windows get proportionally less, so every resize nudges the brackets. Higher values make size differences more visible.",
+        "min": 8,
+        "max": 80,
+        "step": 2,
+        "defaultValue": 36
+      },
+      {
+        "key": "padCurve",
+        "type": "integer",
+        "label": "Size curve",
+        "description": "How padding grows with window size, in tenths: padding = size ^ (value / 10). 10 is linear; higher values give big windows disproportionately more padding so they stand out, while small windows stay compact.",
+        "min": 10,
+        "max": 40,
+        "step": 1,
+        "defaultValue": 20
+      },
+      {
+        "key": "gap",
+        "type": "integer",
+        "label": "Gap between windows",
+        "description": "Space between bracketed windows in logical pixels.",
+        "min": 0,
+        "max": 16,
+        "step": 1,
+        "defaultValue": 4
       }
     ]
   }

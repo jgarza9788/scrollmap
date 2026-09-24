@@ -89,77 +89,253 @@ function overlapFraction(start, end, lo, hi) {
   return b > a ? (b - a) / span : 0
 }
 
-// Turn ordered clients into positioned cells that exactly fill `available`
-// (minus the gaps). Cell extent is proportional to the window's on-screen
-// extent, but never below `minCell`; the proportional share is applied to the
-// space left after every cell is granted its minimum, which guarantees the
-// strip fits no matter how lopsided the real window sizes are.
-//
-// `viewport` (optional) is { start, end } in the same compositor coordinates as
-// the clients' positions, along the active axis. Each cell then reports how much
-// of its window is currently inside the monitor's visible region.
-function computeStrip(clients, available, gap, minCell, vertical, viewport) {
-  var ordered = orderByPosition(clients, vertical)
-  var n = ordered.length
-  if (n === 0) return []
+// ---- Window size -----------------------------------------------------------
+// Window size is shown as bracket padding, not pixel width, and it is
+// continuous: every pixel of resize nudges the brackets. sizeFraction gives
+// 0..1: a tiled window's extent along the bar's axis over the monitor's; a
+// floating window's area over the monitor's, square-rooted so it grows at the
+// same rate as a side length (a quarter-screen float reads as half size).
+function sizeFraction(client, monitor, vertical) {
+  if (!client || !monitor) return 0
+  var mw = Number(monitor.width)
+  var mh = Number(monitor.height)
+  if (!(mw > 0) || !(mh > 0)) return 0
+  var f = client.floating === true
+    ? Math.sqrt(Math.max(0, (client.w * client.h) / (mw * mh)))
+    : (vertical ? client.h / mh : client.w / mw)
+  if (!isFinite(f)) return 0
+  // Rounded so sub-pixel geometry jitter doesn't churn the row model.
+  return Math.round(Math.max(0, Math.min(1, f)) * 1000) / 1000
+}
 
+// Shape the 0..1 size into padding: size^exponent. Above 1 the curve is
+// convex, so big windows get disproportionately more room and are easy to
+// tell apart from half-size ones, while small windows stay compact. 1 is
+// linear.
+function padCurve(size, exponent) {
+  var f = Math.max(0, Math.min(1, Number(size) || 0))
+  var e = Number(exponent)
+  return Math.pow(f, e > 0 ? e : 1)
+}
+
+function bracketsFor(floating) {
+  return floating === true ? ["(", ")"] : ["[", "]"]
+}
+
+// "focused" -> accent, "onscreen" -> foreground, "offscreen" -> muted.
+function stateFor(focused, visibleFraction) {
+  if (focused) return "focused"
+  return visibleFraction > 0.02 ? "onscreen" : "offscreen"
+}
+
+// Ordered strip items, one per window. `viewport` (optional) is { start, end }
+// along the bar's axis in compositor coordinates; `activeAddr` marks focus.
+function buildStrip(clients, monitor, viewport, vertical, activeAddr) {
   var view = viewport && isFinite(viewport.start) && isFinite(viewport.end)
     && viewport.end > viewport.start ? viewport : null
-
-  var space = Math.max(0, Number(available) || 0)
-  var g = Math.max(0, Number(gap) || 0)
-  var floor = Math.max(1, Number(minCell) || 1)
-  var usable = Math.max(1, space - g * (n - 1))
-
-  var extents = ordered.map(function (c) {
-    var e = vertical ? c.h : c.w
-    return e > 0 ? e : 1
+  var active = normalizeAddress(activeAddr)
+  return orderByPosition(clients, vertical).map(function (c) {
+    var s = vertical ? c.y : c.x
+    var e = s + (vertical ? c.h : c.w)
+    var visible = view ? overlapFraction(s, e, view.start, view.end) : 1
+    return {
+      address: c.address,
+      appClass: c.appClass,
+      title: c.title,
+      floating: c.floating === true,
+      size: sizeFraction(c, monitor, vertical),
+      visibleFraction: visible,
+      state: stateFor(active !== "" && c.address === active, visible)
+    }
   })
-  var totalExtent = extents.reduce(function (sum, e) { return sum + e }, 0)
+}
 
-  var sizes
-  if (floor * n >= usable) {
-    var equal = usable / n
-    sizes = ordered.map(function () { return equal })
-  } else {
-    var free = usable - floor * n
-    sizes = extents.map(function (e) {
-      return floor + free * (e / totalExtent)
-    })
+// Padding multiplier (0..1) that fits the strip under `maxPx`. Each item costs
+// `itemPx` (two brackets + label) plus 2 * size * `padPx` of padding, and
+// items are `gapPx` apart. Padding shrinks uniformly before anything clips; at
+// 0 every window reads [x] and the caller clips whatever still overflows.
+function fitPadding(sizes, padPx, itemPx, gapPx, maxPx) {
+  var list = sizes || []
+  var n = list.length
+  if (n === 0) return 1
+  var fixed = n * (Number(itemPx) || 0) + Math.max(0, n - 1) * (Number(gapPx) || 0)
+  var units = 0
+  for (var i = 0; i < n; i++) units += 2 * Math.max(0, Number(list[i]) || 0)
+  var total = units * (Number(padPx) || 0)
+  if (!(total > 0)) return 1
+  var room = (Number(maxPx) || 0) - fixed
+  return Math.max(0, Math.min(1, room / total))
+}
+
+// Reconcile the live delegate list with a new ordered set of addresses, so
+// surviving windows keep their delegate (and its running animations) and
+// closed ones linger as "closing" ghosts for the collapse animation. `current`
+// is [{ address, closing }]; returns the ops to apply in order, simulated on a
+// copy so every index is valid at the moment it is applied:
+//   { op: "close", index }            mark a vanished row as closing
+//   { op: "insert", index, item }     add a new row (item = next[i])
+//   { op: "move", from, to }          reorder a surviving row
+//   { op: "update", index, item }     refresh a surviving row's data
+function syncOps(current, next) {
+  var rows = (current || []).map(function (r) {
+    return { address: r.address, closing: r.closing === true }
+  })
+  var want = {}
+  var items = next || []
+  for (var i = 0; i < items.length; i++) want[items[i].address] = true
+  var ops = []
+
+  for (var j = 0; j < rows.length; j++) {
+    if (!rows[j].closing && !want[rows[j].address]) {
+      rows[j].closing = true
+      ops.push({ op: "close", index: j })
+    }
   }
 
-  var offset = 0
-  return ordered.map(function (client, i) {
-    var winStart = vertical ? client.y : client.x
-    var winEnd = winStart + (vertical ? client.h : client.w)
-    var visibleFraction = view
-      ? overlapFraction(winStart, winEnd, view.start, view.end)
-      : 1
+  function indexOf(addr) {
+    for (var k = 0; k < rows.length; k++)
+      if (rows[k].address === addr) return k
+    return -1
+  }
 
-    var cell = {
-      address: client.address,
-      appClass: client.appClass,
-      title: client.title,
-      floating: client.floating === true,
-      size: sizes[i],
-      offset: offset,
-      visibleFraction: visibleFraction,
-      onScreen: visibleFraction > 0.02
+  var prev = -1
+  for (var t = 0; t < items.length; t++) {
+    var item = items[t]
+    var at = indexOf(item.address)
+    var target = prev + 1
+    if (at === -1) {
+      rows.splice(target, 0, { address: item.address, closing: false })
+      ops.push({ op: "insert", index: target, item: item })
+    } else {
+      if (at !== target) {
+        var row = rows.splice(at, 1)[0]
+        // Removing an earlier row shifts the target left by one.
+        if (at < target) target--
+        rows.splice(target, 0, row)
+        ops.push({ op: "move", from: at, to: target })
+      }
+      rows[target].closing = false
+      ops.push({ op: "update", index: target, item: item })
     }
-    offset += sizes[i] + g
-    return cell
-  })
+    prev = target
+  }
+  return ops
 }
 
-// Preferred strip extent before the maxWidth cap: compact for a couple of
-// windows, growing toward the cap as more open.
-function preferredExtent(count, perWindow, minimum, maximum) {
-  var wanted = Math.max(0, Number(count) || 0) * (Number(perWindow) || 0)
-  return Math.max(Number(minimum) || 0, Math.min(Number(maximum) || wanted, wanted))
+// ---- Settings registries -------------------------------------------------
+// ORDER + { label, description } tables drive the settings popup's radio
+// lists; resolve*() maps any unknown/legacy value back to the default.
+var LABEL_MODE_ORDER = ["icons", "nerdfont", "shortname", "none"]
+var LABEL_MODES = {
+  icons:     { label: "App icons",        description: "The application icon at full bar height, first class letter when none resolves." },
+  nerdfont:  { label: "Nerd Font glyphs", description: "A Nerd Font glyph matched from the window class, a generic window glyph when unmatched." },
+  shortname: { label: "Short name",       description: "The window class cut to a few characters." },
+  none:      { label: "Brackets only",    description: "Empty brackets - size and colour carry all the information." }
+}
+var DEFAULT_LABEL_MODE = "icons"
+
+var FOCUS_ANIMATION_ORDER = [
+  "none", "bracketSnap", "slideCursor", "breathe", "pop", "hyprPop", "glitch", "neon"
+]
+var FOCUS_ANIMATIONS = {
+  none:        { label: "None",         description: "Focus just changes colour." },
+  bracketSnap: { label: "Bracket snap", description: "The brackets fly in from wide and clamp onto the glyph with a little overshoot." },
+  slideCursor: { label: "Slide cursor", description: "An accent underline glides from the old focused window to the new one." },
+  breathe:     { label: "Breathe",      description: "The brackets pulse outward a few times, calm and heartbeat-like, then settle." },
+  pop:         { label: "Pop",          description: "The glyph scales up briefly and springs back." },
+  hyprPop:     { label: "Hypr-pop",     description: "A big multi-stage bounce with a rotation wobble and a shockwave ring - deliberately over the top." },
+  glitch:      { label: "Glitch",       description: "Rapid position jitter, an accent flash and a cyan/magenta chromatic fringe on the brackets." },
+  neon:        { label: "Neon",         description: "Brackets and glyph flicker through brightness variations of the theme accent, like a tube lighting up." }
+}
+var DEFAULT_FOCUS_ANIMATION = "bracketSnap"
+
+function isLabelMode(id) { return Object.prototype.hasOwnProperty.call(LABEL_MODES, id) }
+function isFocusAnimation(id) { return Object.prototype.hasOwnProperty.call(FOCUS_ANIMATIONS, id) }
+function resolveLabelMode(id) { return isLabelMode(id) ? id : DEFAULT_LABEL_MODE }
+function resolveFocusAnimation(id) { return isFocusAnimation(id) ? id : DEFAULT_FOCUS_ANIMATION }
+
+function clampInt(value, lo, hi, fallback) {
+  var n = Number(value)
+  if (value === null || value === undefined || value === "" || !isFinite(n)) return fallback
+  return Math.max(lo, Math.min(hi, Math.round(n)))
 }
 
-// ---- Cell labels ---------------------------------------------------------
-// `iconMode === "nerdfont"` draws one glyph per cell, looked up from the
+function boolOr(value, fallback) {
+  return value === true || value === false ? value : fallback
+}
+
+// Normalize a raw settings object into the 2.0 keys. Legacy 1.x keys are only
+// consulted when the new key is absent: `animate: false` turns every
+// animation off, `showIcons: false` means no label. `cellStyle`, `minCell`,
+// `dimInactive` and `showViewport` no longer mean anything and are ignored.
+function resolveSettings(raw) {
+  var s = raw || {}
+  var legacyStill = s.animate === false
+  var mode = s.iconMode
+  if (mode === undefined || mode === null || mode === "")
+    mode = s.showIcons === false ? "none" : DEFAULT_LABEL_MODE
+  var anim = s.focusAnimation
+  if (anim === undefined || anim === null || anim === "")
+    anim = legacyStill ? "none" : DEFAULT_FOCUS_ANIMATION
+  return {
+    maxWidth: clampInt(s.maxWidth, 120, 1200, 360),
+    gap: clampInt(s.gap, 0, 16, 4),
+    padRange: clampInt(s.padRange, 8, 80, 36),
+    // Stored in tenths (20 = exponent 2.0): the settings schema is integer-only.
+    padCurve: clampInt(s.padCurve, 10, 40, 20),
+    iconMode: resolveLabelMode(String(mode)),
+    nameLength: clampInt(s.nameLength, 1, 4, 3),
+    focusAnimation: resolveFocusAnimation(String(anim)),
+    animUnfold: boolOr(s.animUnfold, !legacyStill),
+    animFloatLift: boolOr(s.animFloatLift, !legacyStill),
+    showFloating: s.showFloating === true
+  }
+}
+
+// ---- Theme colours -------------------------------------------------------
+// The state colours come straight from the active theme's colors.toml, so a
+// theme switch recolours the strip live. Same tolerant line regex as
+// Color.qml's own loader; returns only the keys found.
+// `background`/`foreground` feed ensureContrast below.
+var THEME_COLOR_KEYS = ["accent", "muted", "background", "foreground"]
+
+function parseThemeColors(raw, keys) {
+  var wanted = {}
+  var list = keys || THEME_COLOR_KEYS
+  for (var i = 0; i < list.length; i++) wanted[list[i]] = true
+  var out = {}
+  var lines = String(raw || "").split("\n")
+  for (var j = 0; j < lines.length; j++) {
+    var m = lines[j].match(/^\s*([A-Za-z0-9_-]+)\s*=\s*["']?(#[0-9A-Fa-f]{6})/)
+    if (!m) continue
+    if (wanted[m[1]] && out[m[1]] === undefined) out[m[1]] = m[2]
+  }
+  return out
+}
+
+// Picks the more readable of two text colours on a (possibly translucent)
+// fill composited over `under`. Colours are { r, g, b, a } in 0..1 - a QML
+// color already has these. Returns "primary" or "alt".
+function relativeLuminance(c) {
+  function lin(v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
+  return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+}
+function contrastRatio(a, b) {
+  var la = relativeLuminance(a), lb = relativeLuminance(b)
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+}
+function readableOn(fill, under, primary, alt) {
+  var a = fill.a === undefined ? 1 : fill.a
+  var composite = {
+    r: fill.r * a + under.r * (1 - a),
+    g: fill.g * a + under.g * (1 - a),
+    b: fill.b * a + under.b * (1 - a)
+  }
+  return contrastRatio(primary, composite) >= contrastRatio(alt, composite) ? "primary" : "alt"
+}
+
+// ---- Labels --------------------------------------------------------------
+// `iconMode === "nerdfont"` draws one glyph per window, looked up from the
 // window class. The bar font already resolves to a Nerd Font, so these are
 // just the private-use codepoints. Anything not in the table gets a plain
 // window glyph — a starter set, easy to extend.
@@ -229,14 +405,73 @@ function shortName(cls, n) {
   return s.charAt(0).toUpperCase() + s.slice(1, len).toLowerCase()
 }
 
+function hexToRgb(hex) {
+  var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim())
+  if (!m) return null
+  var n = parseInt(m[1], 16)
+  return { r: ((n >> 16) & 255) / 255, g: ((n >> 8) & 255) / 255, b: (n & 255) / 255 }
+}
+
+function rgbToHex(c) {
+  function h(v) {
+    var s = Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16)
+    return s.length === 1 ? "0" + s : s
+  }
+  return "#" + h(c.r) + h(c.g) + h(c.b)
+}
+
+// Some themes' `muted` is nearly invisible as a text colour on the bar. Mix
+// `hex` toward `towardHex`
+// (the foreground) in 5% steps until it reaches `minRatio` contrast against
+// `bgHex`. Returns `hex` unchanged when it already reads, or when any input
+// fails to parse.
+function ensureContrast(hex, bgHex, towardHex, minRatio) {
+  var c = hexToRgb(hex), bg = hexToRgb(bgHex), to = hexToRgb(towardHex)
+  if (!c || !bg || !to) return hex
+  var want = Number(minRatio) || 3
+  for (var t = 0; t <= 1.0001; t += 0.05) {
+    var mixed = {
+      r: c.r + (to.r - c.r) * t,
+      g: c.g + (to.g - c.g) * t,
+      b: c.b + (to.b - c.b) * t
+    }
+    if (contrastRatio(mixed, bg) >= want) return t === 0 ? hex : rgbToHex(mixed)
+  }
+  return towardHex
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     normalizeAddress: normalizeAddress,
     overlapFraction: overlapFraction,
     eligibleClients: eligibleClients,
     orderByPosition: orderByPosition,
-    computeStrip: computeStrip,
-    preferredExtent: preferredExtent,
+    sizeFraction: sizeFraction,
+    padCurve: padCurve,
+    bracketsFor: bracketsFor,
+    stateFor: stateFor,
+    buildStrip: buildStrip,
+    fitPadding: fitPadding,
+    syncOps: syncOps,
+    LABEL_MODE_ORDER: LABEL_MODE_ORDER,
+    LABEL_MODES: LABEL_MODES,
+    DEFAULT_LABEL_MODE: DEFAULT_LABEL_MODE,
+    FOCUS_ANIMATION_ORDER: FOCUS_ANIMATION_ORDER,
+    FOCUS_ANIMATIONS: FOCUS_ANIMATIONS,
+    DEFAULT_FOCUS_ANIMATION: DEFAULT_FOCUS_ANIMATION,
+    isLabelMode: isLabelMode,
+    isFocusAnimation: isFocusAnimation,
+    resolveLabelMode: resolveLabelMode,
+    resolveFocusAnimation: resolveFocusAnimation,
+    resolveSettings: resolveSettings,
+    THEME_COLOR_KEYS: THEME_COLOR_KEYS,
+    parseThemeColors: parseThemeColors,
+    relativeLuminance: relativeLuminance,
+    contrastRatio: contrastRatio,
+    readableOn: readableOn,
+    hexToRgb: hexToRgb,
+    rgbToHex: rgbToHex,
+    ensureContrast: ensureContrast,
     nerdGlyph: nerdGlyph,
     shortName: shortName,
     NERD_FALLBACK: NERD_FALLBACK

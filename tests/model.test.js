@@ -47,68 +47,6 @@ ok("orderByPosition vertical sorts top to bottom",
   M.orderByPosition([{ address: "0xlow", x: 0, y: 500, w: 1, h: 1 }, { address: "0xhi", x: 0, y: 0, w: 1, h: 1 }], true)
     .map(c => c.address).join("") === "0xhi0xlow");
 
-// computeStrip: proportional, fits exactly, respects gap
-const strip = M.computeStrip(
-  [{ address: "0xa", x: 0, y: 0, w: 800, h: 100 }, { address: "0xb", x: 800, y: 0, w: 1200, h: 100 }],
-  203, 3, 10, false);
-ok("computeStrip count", strip.length === 2);
-ok("computeStrip first offset is 0", strip[0].offset === 0);
-ok("computeStrip fills available width",
-  near(strip[1].offset + strip[1].size, 203, 0.01));
-ok("computeStrip second gap respected",
-  near(strip[1].offset, strip[0].size + 3, 0.01));
-ok("computeStrip wider window gets wider cell", strip[1].size > strip[0].size);
-ok("computeStrip carries the floating flag through",
-  M.computeStrip([{ address: "0xa", x: 0, w: 100, h: 10, floating: true }], 50, 0, 10, false)[0].floating === true);
-
-// computeStrip: minimum cell honored when a window is tiny
-const tiny = M.computeStrip(
-  [{ address: "0xa", x: 0, y: 0, w: 5, h: 100 }, { address: "0xb", x: 10, y: 0, w: 4000, h: 100 }],
-  200, 0, 24, false);
-ok("computeStrip honors minCell for tiny window", tiny[0].size >= 24 - 0.001);
-ok("computeStrip still fits with minCell", near(tiny[1].offset + tiny[1].size, 200, 0.01));
-
-// computeStrip: degenerate — minCell*n exceeds space -> equal split, still fits
-const squeezed = M.computeStrip(
-  [{ address: "0xa", x: 0, w: 100, h: 1 }, { address: "0xb", x: 1, w: 100, h: 1 }, { address: "0xc", x: 2, w: 100, h: 1 }],
-  30, 0, 20, false);
-ok("computeStrip degenerate equal split", near(squeezed[0].size, 10, 0.01));
-ok("computeStrip degenerate still fits", near(squeezed[2].offset + squeezed[2].size, 30, 0.01));
-
-ok("computeStrip empty -> []", M.computeStrip([], 100, 3, 10, false).length === 0);
-
-// computeStrip: without a viewport every cell is fully visible
-const noView = M.computeStrip(
-  [{ address: "0xa", x: 0, y: 0, w: 100, h: 10 }, { address: "0xb", x: 5000, y: 0, w: 100, h: 10 }],
-  100, 0, 10, false);
-ok("computeStrip no viewport -> visibleFraction 1", noView.every(c => c.visibleFraction === 1 && c.onScreen));
-
-// computeStrip: viewport marks which windows are on screen and by how much
-const view = { start: 0, end: 1920 };
-const vp = M.computeStrip([
-  { address: "0xoff", x: -2000, y: 0, w: 900, h: 10 },   // fully scrolled off left
-  { address: "0xhalf", x: -450, y: 0, w: 900, h: 10 },   // half in view
-  { address: "0xin", x: 500, y: 0, w: 900, h: 10 },       // fully in view
-  { address: "0xright", x: 4000, y: 0, w: 900, h: 10 },   // off right
-], 400, 0, 10, false, view);
-ok("computeStrip viewport: off-left not on screen",
-  vp[0].onScreen === false && vp[0].visibleFraction === 0);
-ok("computeStrip viewport: half-in reports ~0.5",
-  near(vp[1].visibleFraction, 0.5, 0.01) && vp[1].onScreen);
-ok("computeStrip viewport: fully-in reports 1", near(vp[2].visibleFraction, 1, 0.001));
-ok("computeStrip viewport: off-right not on screen", vp[3].onScreen === false);
-ok("computeStrip viewport: order preserved by position",
-  vp.map(c => c.address).join(",") === "0xoff,0xhalf,0xin,0xright");
-
-// computeStrip: vertical viewport uses Y
-const vView = M.computeStrip(
-  [{ address: "0xa", x: 0, y: -50, w: 10, h: 100 }, { address: "0xb", x: 0, y: 200, w: 10, h: 100 }],
-  200, 0, 10, true, { start: 0, end: 180 });
-ok("computeStrip vertical viewport: partial top window on screen",
-  near(vView[0].visibleFraction, 0.5, 0.01) && vView[0].onScreen);
-ok("computeStrip vertical viewport: window past bottom is off",
-  vView[1].onScreen === false);
-
 // overlapFraction
 ok("overlapFraction full", M.overlapFraction(0, 100, -10, 200) === 1);
 ok("overlapFraction none", M.overlapFraction(0, 100, 200, 300) === 0);
@@ -116,10 +54,111 @@ ok("overlapFraction partial", near(M.overlapFraction(0, 100, 50, 999), 0.5, 0.00
 ok("overlapFraction zero-width span -> 0", M.overlapFraction(50, 50, 0, 100) === 0);
 ok("overlapFraction tolerates reversed bounds", near(M.overlapFraction(0, 100, 999, 50), 0.5, 0.001));
 
-// preferredExtent
-ok("preferredExtent grows with count", M.preferredExtent(3, 34, 56, 280) === 102);
-ok("preferredExtent floors at minimum", M.preferredExtent(1, 10, 56, 280) === 56);
-ok("preferredExtent caps at maximum", M.preferredExtent(50, 34, 56, 280) === 280);
+// sizeFraction
+const mon = { width: 2000, height: 1000 };
+ok("sizeFraction tiled is width over monitor", near(M.sizeFraction({ w: 700, h: 1000 }, mon, false), 0.35));
+ok("sizeFraction is continuous", M.sizeFraction({ w: 1010, h: 1000 }, mon, false) > M.sizeFraction({ w: 1000, h: 1000 }, mon, false));
+ok("sizeFraction clamps at 1", M.sizeFraction({ w: 2600, h: 1000 }, mon, false) === 1);
+ok("sizeFraction vertical uses height", near(M.sizeFraction({ w: 2000, h: 300 }, mon, true), 0.3));
+ok("sizeFraction floating uses sqrt of area", near(M.sizeFraction({ w: 1000, h: 500, floating: true }, mon, false), 0.5));
+ok("sizeFraction without monitor -> 0", M.sizeFraction({ w: 2000, h: 1000 }, null, false) === 0);
+ok("sizeFraction rounds sub-pixel jitter", M.sizeFraction({ w: 1000.0004, h: 1000 }, mon, false) === 0.5);
+
+// padCurve
+ok("padCurve linear at 1", near(M.padCurve(0.5, 1), 0.5));
+ok("padCurve squares at 2", near(M.padCurve(0.5, 2), 0.25));
+ok("padCurve keeps endpoints", M.padCurve(0, 2) === 0 && M.padCurve(1, 3) === 1);
+ok("padCurve widens the gap between big windows",
+  M.padCurve(1, 2) - M.padCurve(0.7, 2) > 1 - 0.7);
+ok("padCurve bad exponent -> linear", near(M.padCurve(0.4, 0), 0.4));
+
+// bracketsFor / stateFor
+ok("bracketsFor tiled", M.bracketsFor(false).join("") === "[]");
+ok("bracketsFor floating", M.bracketsFor(true).join("") === "()");
+ok("stateFor focused wins", M.stateFor(true, 0) === "focused");
+ok("stateFor on screen", M.stateFor(false, 0.5) === "onscreen");
+ok("stateFor off screen", M.stateFor(false, 0) === "offscreen");
+
+// buildStrip
+const bs = M.buildStrip([
+  { address: "0xf0c", appClass: "b", x: 500, y: 0, w: 1920, h: 10 },
+  { address: "0xoff", appClass: "a", x: -2000, y: 0, w: 700, h: 10 },
+  { address: "0xright", appClass: "c", x: 4000, y: 0, w: 900, h: 10, floating: true },
+], { width: 1920, height: 1080 }, { start: 0, end: 1920 }, false, "0xf0c");
+ok("buildStrip orders by position", bs.map(c => c.address).join(",") === "0xoff,0xf0c,0xright");
+ok("buildStrip states", bs.map(c => c.state).join(",") === "offscreen,focused,offscreen");
+ok("buildStrip sizes", bs.map(c => c.size).join(",") === "0.365,1,0.066");
+ok("buildStrip keeps floating flag", bs[2].floating === true && bs[0].floating === false);
+ok("buildStrip no viewport -> all on screen",
+  M.buildStrip([{ address: "0xa", x: 9999, y: 0, w: 10, h: 10 }], null, null, false, "").every(c => c.state === "onscreen"));
+ok("buildStrip vertical viewport uses Y",
+  M.buildStrip([{ address: "0xa", x: 0, y: 2000, w: 10, h: 100 }], null, { start: 0, end: 1000 }, true, "")[0].state === "offscreen");
+
+// fitPadding
+ok("fitPadding fits -> 1", M.fitPadding([1, 1], 16, 40, 4, 1000) === 1);
+ok("fitPadding shrinks padding", near(M.fitPadding([1, 1], 20, 40, 4, 124), 0.5, 0.001));
+ok("fitPadding floors at 0", M.fitPadding([1, 1, 1], 20, 40, 4, 50) === 0);
+ok("fitPadding no padding -> 1", M.fitPadding([0, 0], 10, 40, 4, 10) === 1);
+ok("fitPadding empty -> 1", M.fitPadding([], 10, 40, 4, 10) === 1);
+
+// syncOps: simulate against a plain array to check the ops are consistent
+function applyOps(rows, ops) {
+  rows = rows.map(r => Object.assign({}, r));
+  for (const o of ops) {
+    if (o.op === "close") rows[o.index].closing = true;
+    else if (o.op === "insert") rows.splice(o.index, 0, { address: o.item.address, closing: false });
+    else if (o.op === "move") { const r = rows.splice(o.from, 1)[0]; rows.splice(o.to, 0, r); }
+    else if (o.op === "update") { if (rows[o.index].address !== o.item.address) throw new Error("bad update"); rows[o.index].closing = false; }
+  }
+  return rows;
+}
+const A = { address: "a" }, B = { address: "b" }, C = { address: "c" }, D = { address: "d" };
+let rows = applyOps([], M.syncOps([], [A, B]));
+ok("syncOps initial inserts", rows.map(r => r.address).join("") === "ab");
+rows = applyOps(rows, M.syncOps(rows, [A, C, B]));
+ok("syncOps insert in the middle", rows.map(r => r.address).join("") === "acb");
+rows = applyOps(rows, M.syncOps(rows, [A, B]));
+ok("syncOps closed row lingers as ghost",
+  rows.map(r => r.address + (r.closing ? "!" : "")).join(",") === "a,b,c!");
+rows = applyOps(rows, M.syncOps(rows, [B, A]));
+ok("syncOps reorders survivors",
+  rows.filter(r => !r.closing).map(r => r.address).join("") === "ba");
+rows = applyOps(rows, M.syncOps(rows, [B, A, C]));
+ok("syncOps revives a ghost", rows.every(r => !r.closing) && rows.map(r => r.address).join("") === "bac");
+const noop = M.syncOps([{ address: "a" }, { address: "b" }], [A, B]);
+ok("syncOps unchanged -> only updates", noop.every(o => o.op === "update"));
+rows = applyOps([{ address: "a" }, { address: "b" }, { address: "c" }], M.syncOps([{ address: "a" }, { address: "b" }, { address: "c" }], [C, D, A]));
+ok("syncOps mixed close/insert/move",
+  rows.filter(r => !r.closing).map(r => r.address).join("") === "cda"
+  && rows.filter(r => r.closing).map(r => r.address).join("") === "b");
+
+// registries
+ok("label modes all described", M.LABEL_MODE_ORDER.every(id => M.LABEL_MODES[id] && M.LABEL_MODES[id].label));
+ok("focus animations all described", M.FOCUS_ANIMATION_ORDER.every(id => M.FOCUS_ANIMATIONS[id] && M.FOCUS_ANIMATIONS[id].label));
+ok("resolveLabelMode unknown -> default", M.resolveLabelMode("bogus") === "icons");
+ok("resolveFocusAnimation unknown -> default", M.resolveFocusAnimation("decode") === "bracketSnap");
+ok("resolveFocusAnimation keeps known", M.resolveFocusAnimation("neon") === "neon");
+
+// resolveSettings
+const d = M.resolveSettings({});
+ok("resolveSettings defaults", d.maxWidth === 360 && d.gap === 4 && d.padRange === 36 && d.padCurve === 20 && d.iconMode === "icons"
+  && d.nameLength === 3 && d.focusAnimation === "bracketSnap" && d.animUnfold && d.animFloatLift && !d.showFloating);
+const legacy = M.resolveSettings({ animate: false, showIcons: false, cellStyle: "outline", minCell: 12 });
+ok("resolveSettings legacy animate:false turns animations off",
+  legacy.focusAnimation === "none" && legacy.animUnfold === false && legacy.animFloatLift === false);
+ok("resolveSettings legacy showIcons:false -> none", legacy.iconMode === "none");
+const mixed = M.resolveSettings({ animate: false, focusAnimation: "pop", animUnfold: true });
+ok("resolveSettings new keys beat legacy", mixed.focusAnimation === "pop" && mixed.animUnfold === true && mixed.animFloatLift === false);
+ok("resolveSettings clamps", M.resolveSettings({ maxWidth: 5, gap: 99, nameLength: 0 }).maxWidth === 120
+  && M.resolveSettings({ gap: 99 }).gap === 16 && M.resolveSettings({ nameLength: 0 }).nameLength === 1);
+
+// parseThemeColors
+const toml = 'accent = "#89b4fa"\nforeground = "#585b70"\n  muted="#6c7086"\ncolor0 = "#000000"\naccent = "#ffffff"\n';
+const tc = M.parseThemeColors(toml);
+ok("parseThemeColors reads wanted keys", tc.accent === "#89b4fa" && tc.foreground === "#585b70" && tc.muted === "#6c7086");
+ok("parseThemeColors ignores unwanted keys", tc.color0 === undefined);
+ok("parseThemeColors first value wins", tc.accent === "#89b4fa");
+ok("readableOn picks contrast", M.readableOn({ r: 0, g: 0, b: 0, a: 1 }, { r: 0, g: 0, b: 0 }, { r: 1, g: 1, b: 1 }, { r: 0, g: 0, b: 0 }) === "primary");
 
 // shortName
 ok("shortName cuts to n chars, first upper", M.shortName("firefox", 3) === "Fir");
@@ -136,6 +175,14 @@ ok("nerdGlyph resolves reverse-DNS via last segment",
 ok("nerdGlyph resolves prefix before dash", M.nerdGlyph("google-chrome-stable") === M.nerdGlyph("google-chrome"));
 ok("nerdGlyph unknown class -> fallback", M.nerdGlyph("some-random-app") === M.NERD_FALLBACK);
 ok("nerdGlyph empty -> fallback", M.nerdGlyph("") === M.NERD_FALLBACK);
+
+// ensureContrast
+ok("hexToRgb/rgbToHex round-trip", M.rgbToHex(M.hexToRgb("#2d470e")) === "#2d470e");
+ok("ensureContrast keeps a readable colour", M.ensureContrast("#6fa42a", "#0f0f0f", "#d7d7d7", 3) === "#6fa42a");
+const lifted = M.ensureContrast("#2d470e", "#0f0f0f", "#d7d7d7", 3);
+ok("ensureContrast lifts a dark colour",
+  lifted !== "#2d470e" && M.contrastRatio(M.hexToRgb(lifted), M.hexToRgb("#0f0f0f")) >= 3);
+ok("ensureContrast bad input passes through", M.ensureContrast("nope", "#000000", "#ffffff", 3) === "nope");
 
 console.log(failed === 0 ? "\nALL PASS" : `\n${failed} FAILED`);
 process.exit(failed === 0 ? 0 : 1);
