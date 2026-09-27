@@ -65,9 +65,22 @@ BarWidget {
   readonly property int glyphPx: Math.max(10, Math.round(barSize * 0.78))
   readonly property int labelPx: Math.max(9, Math.round(barSize * 0.7))
   readonly property int namePx: Math.max(8, Math.round(barSize * 0.52))
-  // Nerd glyphs sit small in their em-box, so they get a larger size than
-  // app icons to read at the same visual weight.
-  readonly property int nerdPx: Math.max(10, Math.round(barSize * 0.92))
+  // Each Nerd Font patches its icons at a different scale inside the em-box,
+  // so a fixed pixel size looks bigger or smaller depending on the bar font.
+  // Measure a reference glyph's ink height in the current font and size the
+  // glyphs so that ink is always the same fraction of the bar height.
+  readonly property real nerdInkTarget: barSize * 0.55
+  readonly property real nerdRefInk: nerdRef.tightBoundingRect.height / 100
+  readonly property int nerdPx: nerdRefInk > 0
+    ? Math.max(8, Math.round(nerdInkTarget / nerdRefInk))
+    : Math.max(10, Math.round(barSize * 0.92))
+
+  TextMetrics {
+    id: nerdRef
+    font.family: root.fontFamily
+    font.pixelSize: 100
+    text: Model.NERD_FALLBACK
+  }
 
   FontMetrics {
     id: bracketMetrics
@@ -89,9 +102,12 @@ BarWidget {
     if (iconMode === "none") return spacePx
     if (iconMode === "shortname" && !vertical)
       return Math.ceil(nameMetrics.advanceWidth("M".repeat(cfg.nameLength)))
-    // Nerd glyphs run a little wider than their pixel size.
+    // Nerd glyphs: the reference glyph's ink width at the normalized size,
+    // with a little breathing room, so spacing is font-independent too.
     if (iconMode === "nerdfont" && !vertical)
-      return Math.ceil(nerdPx * 1.1)
+      return nerdRefInk > 0
+        ? Math.ceil(nerdRef.tightBoundingRect.width / 100 * nerdPx * 1.25)
+        : Math.ceil(nerdPx * 1.1)
     return labelPx
   }
   // Padding per side, in px, for a window as big as the monitor; smaller
@@ -704,6 +720,22 @@ BarWidget {
         scale: win.labelScale * (0.4 + 0.6 * Math.max(0, win.unfold))
         rotation: win.labelRot
 
+        // A glyph's ink rarely sits at the centre of its line box (and where
+        // it sits varies by font), so nerd glyphs are nudged until their
+        // measured ink is centred in the label box.
+        TextMetrics {
+          id: labelInk
+          font: labelText.font
+          text: root.iconMode === "nerdfont" ? labelText.text : ""
+        }
+        readonly property bool inkCentre: root.iconMode === "nerdfont" && labelInk.tightBoundingRect.width > 0
+        readonly property real inkDx: inkCentre
+          ? Math.round(labelText.contentWidth / 2 - labelInk.tightBoundingRect.x - labelInk.tightBoundingRect.width / 2)
+          : 0
+        readonly property real inkDy: inkCentre
+          ? Math.round(height / 2 - labelText.baselineOffset - labelInk.tightBoundingRect.y - labelInk.tightBoundingRect.height / 2)
+          : 0
+
         Image {
           id: iconImg
           anchors.centerIn: parent
@@ -748,6 +780,7 @@ BarWidget {
           font.pixelSize: root.iconMode === "shortname" ? root.namePx
             : (root.iconMode === "nerdfont" ? root.nerdPx : Math.round(root.labelPx * 0.8))
           font.bold: win.focused || root.iconMode === "shortname"
+          transform: Translate { x: labelBox.inkDx; y: labelBox.inkDy }
         }
 
         Text { // neon overlay
@@ -762,6 +795,7 @@ BarWidget {
           color: win.neonColor
           opacity: win.neonAlpha
           scale: win.neonScale
+          transform: Translate { x: labelBox.inkDx; y: labelBox.inkDy }
         }
 
         Item { // hypr-pop shockwave ring
@@ -993,11 +1027,26 @@ BarWidget {
       y: root.vertical ? br.shift : 0
     }
 
+    // Where a bracket's ink sits in its line box varies by font (and "[" vs
+    // "]" lean opposite ways), so centre the measured ink on the bracket's
+    // slot - keeping the gap to the label the same on both sides in any font.
+    TextMetrics {
+      id: ink
+      font: main.font
+      text: br.glyph
+    }
+
     Item {
       anchors.centerIn: parent
       width: main.implicitWidth
       height: main.implicitHeight
       rotation: root.vertical ? 90 : 0
+      transform: Translate {
+        x: ink.tightBoundingRect.width > 0
+          ? Math.round(main.implicitWidth / 2 - ink.tightBoundingRect.x - ink.tightBoundingRect.width / 2) : 0
+        y: ink.tightBoundingRect.height > 0
+          ? Math.round(main.implicitHeight / 2 - main.baselineOffset - ink.tightBoundingRect.y - ink.tightBoundingRect.height / 2) : 0
+      }
 
       Text { // glitch fringe: cyan
         anchors.centerIn: parent
