@@ -77,6 +77,7 @@ Both images are mock-ups, not screenshots. Regenerate them with
 | `hyprPop` | A big multi-stage bounce with a rotation wobble and an expanding shockwave ring. Deliberately over the top. |
 | `glitch` | Rapid position jitter, an accent flash, and a cyan/magenta chromatic fringe on the brackets. |
 | `neon` | Brackets and glyph flicker through lighter and darker versions of the theme accent, like a tube lighting up. |
+| `ink` | A Material Design ink ripple in the theme accent spreads out from where you clicked (or the centre, for keyboard focus) and fades. |
 
 `pop`, `hyprPop`, `glitch` and `neon` are adapted from
 [workspace-styles](https://github.com/jgarza9788/workspace-styles).

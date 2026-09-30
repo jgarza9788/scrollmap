@@ -623,6 +623,14 @@ BarWidget {
     property color neonColor: root.accentColor
     property real ringScale: 1
     property real ringAlpha: 0
+    // Ink ripple: origin (item coords), growth 0..1 and wash opacity.
+    property real inkX: width / 2
+    property real inkY: height / 2
+    property real inkScale: 0
+    property real inkAlpha: 0
+    // Last left-press point, so a click-driven focus ripples from the click.
+    property point pressPos: Qt.point(-1, -1)
+    property double pressAt: 0
 
     // The curve runs after the tween, so a resize still animates smoothly.
     readonly property real padPx: Math.max(0, Model.padCurve(padFrac, root.padExponent) * unfold)
@@ -676,7 +684,17 @@ BarWidget {
       case "hyprPop": hyprPopAnim.restart(); ringAnim.restart(); break
       case "glitch": glitchAnim.restart(); break
       case "neon": neonAnim.restart(); break
+      case "ink": playInk(); break
       }
+    }
+
+    // Focus from a click lands a moment after the press, so a recent press
+    // inside this window is the ripple origin; otherwise it starts centred.
+    function playInk() {
+      var fromClick = Date.now() - pressAt < 1000
+      inkX = fromClick ? pressPos.x : width / 2
+      inkY = fromClick ? pressPos.y : height / 2
+      inkAnim.restart()
     }
 
     Rectangle { // hover wash
@@ -685,6 +703,30 @@ BarWidget {
       radius: Style.cornerRadius
       color: Util.alpha(root.fg, win.hovered ? 0.10 : 0)
       Behavior on color { ColorAnimation { duration: 120 } }
+    }
+
+    Item { // ink ripple, clipped to the window's cell, under the brackets
+      anchors.fill: parent
+      anchors.margins: 1
+      clip: true
+      visible: win.inkAlpha > 0
+
+      Rectangle {
+        // Big enough to reach the cell's farthest corner from the origin.
+        readonly property real reach: {
+          var ox = win.inkX - 1, oy = win.inkY - 1
+          var dx = Math.max(ox, parent.width - ox), dy = Math.max(oy, parent.height - oy)
+          return Math.sqrt(dx * dx + dy * dy)
+        }
+        x: win.inkX - 1 - reach
+        y: win.inkY - 1 - reach
+        width: reach * 2
+        height: reach * 2
+        radius: reach
+        color: root.accentColor
+        opacity: win.inkAlpha
+        scale: win.inkScale
+      }
     }
 
     Grid {
@@ -835,6 +877,10 @@ BarWidget {
       enabled: !win.closing
       acceptedButtons: Qt.LeftButton
       cursorShape: Qt.PointingHandCursor
+      onPressed: mouse => {
+        win.pressPos = Qt.point(mouse.x, mouse.y)
+        win.pressAt = Date.now()
+      }
       onClicked: root.focusClient(win.address)
       onEntered: if (root.bar)
         root.bar.showTooltip(win, String(win.title || win.appClass))
@@ -1002,6 +1048,18 @@ BarWidget {
         NumberAnimation { target: win; property: "neonAlpha"; to: 0.0; duration: 160 }
         ColorAnimation { target: win; property: "neonColor"; to: root.accentColor; duration: 160 }
         NumberAnimation { target: win; property: "neonScale"; to: 1.0; duration: 160 }
+      }
+    }
+
+    // Ink: a Material ripple - an accent circle grows out from the origin on
+    // a decelerating curve while its wash fades once it has mostly spread.
+    ParallelAnimation {
+      id: inkAnim
+      NumberAnimation { target: win; property: "inkScale"; from: 0.05; to: 1; duration: 450; easing.type: Easing.OutCubic }
+      SequentialAnimation {
+        NumberAnimation { target: win; property: "inkAlpha"; from: 0; to: 0.35; duration: 60 }
+        PauseAnimation { duration: 200 }
+        NumberAnimation { target: win; property: "inkAlpha"; to: 0; duration: 350; easing.type: Easing.OutQuad }
       }
     }
   }

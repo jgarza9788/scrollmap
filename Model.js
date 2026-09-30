@@ -235,7 +235,7 @@ var LABEL_MODES = {
 var DEFAULT_LABEL_MODE = "icons"
 
 var FOCUS_ANIMATION_ORDER = [
-  "none", "bracketSnap", "slideCursor", "breathe", "pop", "hyprPop", "glitch", "neon"
+  "none", "bracketSnap", "slideCursor", "breathe", "pop", "hyprPop", "glitch", "neon", "ink"
 ]
 var FOCUS_ANIMATIONS = {
   none:        { label: "None",         description: "Focus just changes colour." },
@@ -245,7 +245,8 @@ var FOCUS_ANIMATIONS = {
   pop:         { label: "Pop",          description: "The glyph scales up briefly and springs back." },
   hyprPop:     { label: "Hypr-pop",     description: "A big multi-stage bounce with a rotation wobble and a shockwave ring - deliberately over the top." },
   glitch:      { label: "Glitch",       description: "Rapid position jitter, an accent flash and a cyan/magenta chromatic fringe on the brackets." },
-  neon:        { label: "Neon",         description: "Brackets and glyph flicker through brightness variations of the theme accent, like a tube lighting up." }
+  neon:        { label: "Neon",         description: "Brackets and glyph flicker through brightness variations of the theme accent, like a tube lighting up." },
+  ink:         { label: "Ink",          description: "A Material-style ink ripple in the theme accent spreads from the click point (or centre) and fades." }
 }
 var DEFAULT_FOCUS_ANIMATION = "bracketSnap"
 
@@ -352,10 +353,10 @@ var NERD_GLYPHS = {
   "code": "",
   "codium": "",
   "vscodium": "",
-  "kitty": "",
-  "alacritty": "",
+  "kitty": "󰄛", // cat
+  "alacritty": "󰑣", // rocket
   "foot": "",
-  "ghostty": "",
+  "ghostty": "󰊠", // ghost
   "wezterm": "",
   "discord": "",
   "slack": "",

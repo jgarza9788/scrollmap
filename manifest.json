@@ -5,7 +5,7 @@
   "version": "2.0.0",
   "author": "jgarza",
   "license": "MIT",
-  "description": "Mini-map of this monitor's active-workspace windows for the Hyprland scrolling layout. Each window is a bracketed glyph at full bar height - padding grows continuously with its size ([x] .. [  x  ], floating windows in parentheses) and colour shows where it is: accent when focused, foreground on screen, muted when scrolled off. Pick from focus animations (bracket snap, slide cursor, breathe, pop, hypr-pop, glitch, neon) plus unfold/collapse and float-lift.",
+  "description": "Mini-map of this monitor's active-workspace windows for the Hyprland scrolling layout. Each window is a bracketed glyph at full bar height - padding grows continuously with its size ([x] .. [  x  ], floating windows in parentheses) and colour shows where it is: accent when focused, foreground on screen, muted when scrolled off. Pick from focus animations (bracket snap, slide cursor, breathe, pop, hypr-pop, glitch, neon, ink) plus unfold/collapse and float-lift.",
   "preview": "preview.png",
   "kinds": [
     "bar-widget"
@@ -121,6 +121,11 @@
             "value": "neon",
             "label": "Neon",
             "description": "Brackets and glyph flicker through brightness variations of the theme accent, like a tube lighting up."
+          },
+          {
+            "value": "ink",
+            "label": "Ink",
+            "description": "A Material-style ink ripple in the theme accent spreads from the click point (or centre) and fades."
           }
         ]
       },

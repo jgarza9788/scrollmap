@@ -138,6 +138,7 @@ ok("focus animations all described", M.FOCUS_ANIMATION_ORDER.every(id => M.FOCUS
 ok("resolveLabelMode unknown -> default", M.resolveLabelMode("bogus") === "icons");
 ok("resolveFocusAnimation unknown -> default", M.resolveFocusAnimation("decode") === "bracketSnap");
 ok("resolveFocusAnimation keeps known", M.resolveFocusAnimation("neon") === "neon");
+ok("resolveFocusAnimation keeps ink", M.resolveFocusAnimation("ink") === "ink");
 
 // resolveSettings
 const d = M.resolveSettings({});
@@ -173,6 +174,9 @@ ok("nerdGlyph maps a known class", M.nerdGlyph("firefox") === "");
 ok("nerdGlyph resolves reverse-DNS via last segment",
   M.nerdGlyph("org.gnome.Nautilus") === M.nerdGlyph("nautilus"));
 ok("nerdGlyph resolves prefix before dash", M.nerdGlyph("google-chrome-stable") === M.nerdGlyph("google-chrome"));
+ok("nerdGlyph gives ghostty a ghost", M.nerdGlyph("com.mitchellh.ghostty") === String.fromCodePoint(0xF02A0));
+ok("nerdGlyph gives kitty a cat", M.nerdGlyph("kitty") === String.fromCodePoint(0xF011B));
+ok("nerdGlyph gives alacritty a rocket", M.nerdGlyph("Alacritty") === String.fromCodePoint(0xF0463));
 ok("nerdGlyph unknown class -> fallback", M.nerdGlyph("some-random-app") === M.NERD_FALLBACK);
 ok("nerdGlyph empty -> fallback", M.nerdGlyph("") === M.NERD_FALLBACK);
 
