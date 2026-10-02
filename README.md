@@ -14,7 +14,9 @@ does nothing else.
 
 ![preview](preview.png)
 
-[▶️ YouTube Video Demo](https://www.youtube.com/watch?v=rfmkSCV7xyw)
+*Focused Ghostty, an on-screen window, and Chrome scrolled off to the right.*
+
+[▶️ YouTube Video Demo](https://youtu.be/bV4Z-bMX77U)
 
 ## Reading the strip
 
@@ -60,7 +62,13 @@ the bar, it is lifted toward the foreground.
 
 ![label modes](previews/label-modes.svg)
 
-Both images are mock-ups, not screenshots. Regenerate them with
+In `nerdfont` mode, glyphs are sized and centred by their measured ink rather
+than by font size. Each Nerd Font patches its icons at a different scale, but
+glyphs, brackets and spacing look the same whichever bar font you use.
+Terminals get their own glyphs: Ghostty is a ghost, Kitty a cat and Alacritty
+a rocket.
+
+`preview.png` is a real screenshot. The two images above are mock-ups. Regenerate them with
 `python3 previews/generate_previews.py`.
 
 ## Animations
